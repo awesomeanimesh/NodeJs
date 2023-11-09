@@ -8,9 +8,14 @@
 <body>
     <form method="post" action="/login">
         <h1>Login Now</h1>
-        <input type="text" name="name"class="text" placeholder="Name" />
-        <input type="email" name="email" class="email" placeholder="Email" />
+        <!-- <input type="text" name="name"class="text" placeholder="Name" /> -->
+        <input type="email" name="email" class="email" placeholder="Email" value="<%= locals.email %>" />
+        <input type="password" name="password" class="password" placeholder="Password" />
+        <h2 class="error">
+            <%= locals.message %>
+        </h2>
         <button type="submit">Login</button>
+        
        </form>
 </body>
 </html>

@@ -31,14 +31,16 @@ import mongoose from "mongoose";
 import { name } from "ejs";
 import cookieParser from "cookie-parser";
 import jwt from "jsonwebtoken";
-3
+import bcrypt from "bcrypt";
+
 mongoose.connect("mongodb://localhost:27017",{
 dbName:"backend"
 }).then(()=>console.log("Database connected")).catch((e)=>console.log(e))
 
 const userSchema=new mongoose.Schema({
     name:String,
-    email:String
+    email:String,
+    password:String
 })
 const User=mongoose.model("user",userSchema)
 
@@ -49,7 +51,7 @@ server.use(express.urlencoded({extended:true}))
 server.use(cookieParser())
 
 server.set("view engine","ejs")
-const isAuthenticated=(req,res,next)=>{
+const isAuthenticated= async (req,res,next)=>{
     // res.sendStatus(404)
     // res.json({
     //     success:true,
@@ -62,19 +64,28 @@ const isAuthenticated=(req,res,next)=>{
     const {token}=req.cookies;
     if(token)
     {
-        next();
+        const decoded=jwt.verify(token,"fhcccuyfufuyf")
         
+        req.user=await User.findById(decoded._id)
+        next();
     }
     else
     {
-        res.render("login")  
+        res.redirect("login")  
     }
     
     // res.sendFile("index")
     
     }
 server.get("/",isAuthenticated,(req,res)=>{
-    res.render("logout") 
+    res.render("logout",{name:req.user.name}) 
+})
+server.get("/register",(req,res)=>{
+
+    res.render("register") 
+})
+server.get("/login",(req,res)=>{
+res.render("login")
 })
 // server.get("/add",(req,res)=>{
 //     Message.create({name:"Animesh",email:"sample@gmail.com"}).then(()=>{
@@ -92,17 +103,46 @@ server.get("/",isAuthenticated,(req,res)=>{
 //     })
 
 server.post("/login", async (req,res)=>{
-    const {name,email}=req.body;
-    const user=await User.create({name,email})
-    console.log(user);
-res.cookie("token",user._id,{httpOnly:true,expires:new Date(Date.now()+60*1000)})
+    const {email,password}=req.body;
+
+    let user= await User.findOne({email});
+    if(!user)
+    {
+return res.redirect("/register")
+    }
+
+    //  user=await User.create({name,email})
+    const isMatch=await bcrypt.compare(password,user.password)
+    if(!isMatch)
+    {
+        return res.render("login",{email,message:"wrong Password"})
+    }
+    const token=jwt.sign({_id:user._id},"fhcccuyfufuyf")
+    
+res.cookie("token",token,{httpOnly:true,expires:new Date(Date.now()+60*1000)})
 
 res.redirect("/")
+})
+server.post("/register",async (req,res)=>{
+    const {name,email,password}=req.body;
+    let user=await User.findOne({email})
+    if(user)
+    {
+        return res.redirect("/login")
+    }
+    const hashedPassword=await bcrypt.hash(password,10)
+    user=await User.create({name,email,password:hashedPassword})
+    const token=jwt.sign({_id:user._id},"fhcccuyfufuyf")
+    
+res.cookie("token",token,{httpOnly:true,expires:new Date(Date.now()+60*1000)})
+
+res.redirect("/")
+
 })
 server.get("/logout",(req,res)=>{
     res.cookie("token",null,{httpOnly:true,expires:new Date(Date.now())})
     res.redirect("/")
     })
-server.listen(5000,()=>{
+server.listen(3000,()=>{
     console.log("Server is workingg");
 })
